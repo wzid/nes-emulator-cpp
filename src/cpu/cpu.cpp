@@ -1,10 +1,15 @@
 #include "cpu.h"
 
+#include <format>
+#include <stdexcept>
 #include <vector>
+
+#include "opcode.h"
 
 CPU::CPU() {
     register_a = 0;
     register_x = 0;
+    register_y = 0;
     status = 0;
     program_counter = 0;
 }
@@ -41,26 +46,49 @@ void CPU::load_and_run(std::vector<uint8_t> &program) {
 
 void CPU::run() {
     while (1) {
-        uint8_t opcode = mem_read(program_counter);
+        uint8_t hex_code = mem_read(program_counter);
         program_counter++;
 
-        switch (opcode) {
-            // We need to add braces because we are declaring a variable
-            // within the case statement.
-            case 0xA9: {
-                auto param = mem_read(program_counter);
-                lda(param);
-            } break;
-            case 0xA2: {
-                auto param = mem_read(program_counter);
-                ldx(param);
-            } break;
-            case 0xAA:
-                tax();
-                break;
+        OpCode opcode = opcodes[hex_code];
+
+        switch (hex_code) {
             case 0xE8:
                 inx();
                 break;
+
+            case 0xA9:
+            case 0xA5:
+            case 0xB5:
+            case 0xAD:
+            case 0xBD:
+            case 0xB9:
+            case 0xA1:
+            case 0xB1:
+                lda(opcode.mode);
+                break;
+
+            case 0xA2:
+            case 0xA6:
+            case 0xB6:
+            case 0xAE:
+            case 0xBE:
+                ldx(opcode.mode);
+                break;
+
+            case 0x85:
+            case 0x95:
+            case 0x8D:
+            case 0x9D:
+            case 0x99:
+            case 0x81:
+            case 0x91:
+                sta(opcode.mode);
+                break;
+
+            case 0xAA:
+                tax();
+                break;
+
             case 0x00:
                 return;
                 break;
@@ -68,23 +96,82 @@ void CPU::run() {
     }
 }
 
-void CPU::lda(uint8_t value) {
-    register_a = value;
-    update_zero_and_negative_flags(register_a);
-}
-
-void CPU::ldx(uint8_t value) {
-    register_x = value;
-    update_zero_and_negative_flags(register_x);
-}
-
-void CPU::tax() {
-    register_x = register_a;
-    update_zero_and_negative_flags(register_x);
+uint16_t CPU::get_operand_address(AddressingMode &mode) {
+    switch (mode) {
+        case IMMEDIATE:
+            return program_counter;
+        case ZEROPAGE:
+            return mem_read(program_counter);
+        case ABSOLUTE:
+            return mem_read_u16(program_counter);
+        case ZEROPAGE_X: {
+            uint8_t pos = mem_read(program_counter);
+            return pos + register_x;
+        }
+        case ZEROPAGE_Y: {
+            uint8_t pos = mem_read(program_counter);
+            return pos + register_y;
+        }
+        case ABSOLUTE_X: {
+            uint16_t pos = mem_read_u16(program_counter);
+            return pos + register_x;
+        }
+        case ABSOLUTE_Y: {
+            uint16_t pos = mem_read_u16(program_counter);
+            return pos + register_y;
+        }
+        case INDIRECT_X: {
+            // https://skilldrick.github.io/easy6502/#indexed-indirect-c0x
+            uint8_t pos = mem_read(program_counter);
+            uint8_t addr = pos + register_x;
+            uint16_t lower = mem_read(addr);
+            uint16_t higher = mem_read(addr + 1);
+            return (higher << 8) | lower;
+        }
+        case INDIRECT_Y: {
+            // https://skilldrick.github.io/easy6502/#indirect-indexed-c0y
+            uint8_t pos = mem_read(program_counter);
+            uint16_t lower = mem_read(pos);
+            uint16_t higher = mem_read(pos + 1);
+            uint16_t final_addr = (higher << 8) | lower;
+            return final_addr + register_y;
+        }
+        case NONE_ADDRESSING: {
+            const char *mode_name = addressing_mode_name[1];
+            throw std::invalid_argument(
+                std::format("Mode {} is not supported", mode_name));
+        }
+    }
 }
 
 void CPU::inx() {
     register_x++;
+    update_zero_and_negative_flags(register_x);
+}
+
+void CPU::lda(AddressingMode &mode) {
+    auto addr = get_operand_address(mode);
+    auto value = mem_read(addr);
+
+    register_a = value;
+    update_zero_and_negative_flags(register_a);
+}
+
+void CPU::ldx(AddressingMode &mode) {
+    auto addr = get_operand_address(mode);
+    auto value = mem_read(addr);
+
+    register_x = value;
+    update_zero_and_negative_flags(register_x);
+}
+
+void CPU::sta(AddressingMode &mode) {
+    auto addr = get_operand_address(mode);
+    mem_write(addr, register_a);
+}
+
+void CPU::tax() {
+    register_x = register_a;
     update_zero_and_negative_flags(register_x);
 }
 
