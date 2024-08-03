@@ -20,6 +20,15 @@ const static char *addressing_mode_name[10] = {
     "Absolute",   "Absolute X",     "Absolute Y",  "Indirect X",
     "Indirect Y", "None Addressing"};
 
+const static uint8_t CARRY_FLAG = 1 << 0;              // 00000001
+const static uint8_t ZERO_FLAG = 1 << 1;               // 00000010
+const static uint8_t INTERRUPT_DISABLE_FLAG = 1 << 2;  // 00000100
+const static uint8_t DECIMAL_MODE_FLAG = 1 << 3;       // 00001000
+const static uint8_t BREAK_FLAG = 1 << 4;              // 00010000
+const static uint8_t BREAK2_FLAG = 1 << 5;             // 00100000
+const static uint8_t OVERFLOW_FLAG = 1 << 6;           // 01000000
+const static uint8_t NEGATIVE_FLAG = 1 << 7;           // 10000000
+
 class CPU {
    public:
     CPU();
@@ -28,6 +37,11 @@ class CPU {
     void load_and_run(std::vector<uint8_t> &program);
     void load(std::vector<uint8_t> &program);
     void run();
+
+    bool has_status_flag(uint8_t status_flag);
+    void set_status_flag(uint8_t status_flag);
+    void clear_status_flag(uint8_t status_flag);
+    void set_status_flag_bit(uint8_t status_flag, bool check);
 
     uint8_t mem_read(uint16_t address);
     void mem_write(uint16_t address, uint8_t data);
@@ -40,19 +54,41 @@ class CPU {
     uint8_t get_register_y() { return register_y; }
     uint8_t get_status() { return status; }
 
+    void set_register_a(uint8_t value) {
+        register_a = value;
+        update_zero_and_negative_flags(register_a);
+    }
+
+    void set_register_x(uint8_t value) {
+        register_x = value;
+        update_zero_and_negative_flags(register_x);
+    }
+
+    void set_register_y(uint8_t value) {
+        register_y = value;
+        update_zero_and_negative_flags(register_y);
+    }
+
    private:
     uint16_t get_operand_address(AddressingMode &mode);
+    void add_to_register_a(uint8_t value);
 
-    void inx();
-    void lda(AddressingMode &mode);
-    void ldx(AddressingMode &mode);
-    void sta(AddressingMode &mode);
-    void tax();
-    void update_zero_and_negative_flags(uint8_t register_to_check);
+    [[gnu::always_inline]]
+    inline void op_ADC(AddressingMode &mode);
+    inline void op_AND(AddressingMode &mode);
+    inline void op_ASL_register_a();
+    inline void op_ASL(AddressingMode &mode);
+    inline void branch();
+    inline void op_BIT(AddressingMode &mode);
+    inline void op_CLC();
+    
+    inline void op_INX();
+    inline void op_LDA(AddressingMode &mode);
+    inline void op_LDX(AddressingMode &mode);
+    inline void op_STA(AddressingMode &mode);
+    inline void op_TAX();
 
-    // We have these so I can comment them more efficently
-    void set_zero_flag(uint8_t register_to_check);
-    void set_negative_flag(uint8_t register_to_check);
+    inline void update_zero_and_negative_flags(uint8_t register_to_check);
 
     uint8_t register_a;
     uint8_t register_x;
