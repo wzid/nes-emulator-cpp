@@ -195,6 +195,23 @@ uint16_t CPU::get_operand_address(AddressingMode &mode) {
             uint16_t pos = mem_read_u16(program_counter);
             return pos + register_y;
         }
+        case INDIRECT: {
+            // JMP is the only instruction with INDIRECT addressing mode
+            // https://www.nesdev.org/obelisk-6502-guide/reference.html#JMP
+            uint16_t addr = mem_read_u16(program_counter);
+
+            uint16_t result = 0;
+            // bug in 6502 processors - see link above for more information
+            if ((addr & 0x00FF) == 0x00FF) {
+                uint16_t lower = mem_read(addr);
+                uint16_t higher = mem_read(addr & 0xFF00);
+                result = (higher << 8) | lower;
+            } else {
+                result = mem_read_u16(addr);
+            }
+
+            return result;
+        }
         case INDIRECT_X: {
             // https://skilldrick.github.io/easy6502/#indexed-indirect-c0x
             uint8_t pos = mem_read(program_counter);
@@ -361,6 +378,9 @@ void CPU::run() {
             case INX:
                 register_x++;
                 update_zero_and_negative_flags(register_x);
+                break;
+            case JMP:
+                program_counter = addr;
                 break;
             case LDA: {
                 auto value = mem_read(addr);

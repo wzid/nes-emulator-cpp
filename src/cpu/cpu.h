@@ -58,55 +58,10 @@ class CPU {
     void add_to_register_a(uint8_t value);
 
     [[gnu::always_inline]]
-    inline void op_ADC(AddressingMode &mode);
-
-    [[gnu::always_inline]]
-    inline void op_AND(AddressingMode &mode);
-
-    [[gnu::always_inline]]
-    inline void op_ASL_register_a();
-
-    [[gnu::always_inline]]
-    inline void op_ASL(AddressingMode &mode);
-
-    [[gnu::always_inline]]
     inline void branch();
 
     [[gnu::always_inline]]
-    inline void op_BIT(AddressingMode &mode);
-
-    [[gnu::always_inline]]
     inline void compare(AddressingMode &mode, uint8_t register_to_compare);
-
-    [[gnu::always_inline]]
-    inline void op_DEC(AddressingMode &mode);
-
-    [[gnu::always_inline]]
-    inline void op_DEX();
-
-    [[gnu::always_inline]]
-    inline void op_DEY();
-
-    [[gnu::always_inline]]
-    inline void op_EOR(AddressingMode &mode);
-
-    [[gnu::always_inline]]
-    inline void op_INC(AddressingMode &mode);
-
-    [[gnu::always_inline]]
-    inline void op_INX();
-
-    [[gnu::always_inline]]
-    inline void op_LDA(AddressingMode &mode);
-
-    [[gnu::always_inline]]
-    inline void op_LDX(AddressingMode &mode);
-
-    [[gnu::always_inline]]
-    inline void op_STA(AddressingMode &mode);
-
-    [[gnu::always_inline]]
-    inline void op_TAX();
 
     void update_zero_and_negative_flags(uint8_t register_to_check);
 

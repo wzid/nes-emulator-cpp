@@ -75,15 +75,16 @@ enum AddressingMode {
     ABSOLUTE,
     ABSOLUTE_X,
     ABSOLUTE_Y,
+    INDIRECT,
     INDIRECT_X,
     INDIRECT_Y,
     IMPLIED,
 };
 
-const static char *addressing_mode_name[11] = {
-    "Accumulator", "Immediate",  "Zero Page",      "Zero Page X",
-    "Zero Page Y", "Absolute",   "Absolute X",     "Absolute Y",
-    "Indirect X",  "Indirect Y", "Implied"};
+const static char *addressing_mode_name[12] = {
+    "Accumulator", "Immediate",  "Zero Page",  "Zero Page X",
+    "Zero Page Y", "Absolute",   "Absolute X", "Absolute Y",
+    "Indirect",    "Indirect X", "Indirect Y", "Implied"};
 
 struct OpCode {
     uint8_t opcode;
@@ -105,50 +106,50 @@ const static OpCode opcodes[0xff] = {
     [0X65] = {0X65, ADC, 2, 3, ZEROPAGE},
     [0X75] = {0X75, ADC, 2, 4, ZEROPAGE_X},
     [0X6D] = {0X6D, ADC, 3, 4, ABSOLUTE},
-    [0X7D] = {0X7D, ADC, 3, 4/*+1 if page crossed*/, ABSOLUTE_X},
-    [0X79] = {0X79, ADC, 3, 4/*+1 if page crossed*/, ABSOLUTE_Y},
+    [0X7D] = {0X7D, ADC, 3, 4 /*+1 if page crossed*/, ABSOLUTE_X},
+    [0X79] = {0X79, ADC, 3, 4 /*+1 if page crossed*/, ABSOLUTE_Y},
     [0X61] = {0X61, ADC, 2, 6, INDIRECT_X},
-    [0X71] = {0X71, ADC, 2, 5/*+1 if page crossed*/, INDIRECT_Y},
+    [0X71] = {0X71, ADC, 2, 5 /*+1 if page crossed*/, INDIRECT_Y},
 
     // SBC
     [0XE9] = {0XE9, SBC, 2, 2, IMMEDIATE},
     [0XE5] = {0XE5, SBC, 2, 3, ZEROPAGE},
     [0XF5] = {0XF5, SBC, 2, 4, ZEROPAGE_X},
     [0XED] = {0XED, SBC, 3, 4, ABSOLUTE},
-    [0XFD] = {0XFD, SBC, 3, 4/*+1 if page crossed*/, ABSOLUTE_X},
-    [0XF9] = {0XF9, SBC, 3, 4/*+1 if page crossed*/, ABSOLUTE_Y},
+    [0XFD] = {0XFD, SBC, 3, 4 /*+1 if page crossed*/, ABSOLUTE_X},
+    [0XF9] = {0XF9, SBC, 3, 4 /*+1 if page crossed*/, ABSOLUTE_Y},
     [0XE1] = {0XE1, SBC, 2, 6, INDIRECT_X},
-    [0XF1] = {0XF1, SBC, 2, 5/*+1 if page crossed*/, INDIRECT_Y},
+    [0XF1] = {0XF1, SBC, 2, 5 /*+1 if page crossed*/, INDIRECT_Y},
 
     // AND
     [0X29] = {0X29, AND, 2, 2, IMMEDIATE},
     [0X25] = {0X25, AND, 2, 3, ZEROPAGE},
     [0X35] = {0X35, AND, 2, 4, ZEROPAGE_X},
     [0X2D] = {0X2D, AND, 3, 4, ABSOLUTE},
-    [0X3D] = {0X3D, AND, 3, 4/*+1 if page crossed*/, ABSOLUTE_X},
-    [0X39] = {0X39, AND, 3, 4/*+1 if page crossed*/, ABSOLUTE_Y},
+    [0X3D] = {0X3D, AND, 3, 4 /*+1 if page crossed*/, ABSOLUTE_X},
+    [0X39] = {0X39, AND, 3, 4 /*+1 if page crossed*/, ABSOLUTE_Y},
     [0X21] = {0X21, AND, 2, 6, INDIRECT_X},
-    [0X31] = {0X31, AND, 2, 5/*+1 if page crossed*/, INDIRECT_Y},
+    [0X31] = {0X31, AND, 2, 5 /*+1 if page crossed*/, INDIRECT_Y},
 
     // EOR
     [0X49] = {0X49, EOR, 2, 2, IMMEDIATE},
     [0X45] = {0X45, EOR, 2, 3, ZEROPAGE},
     [0X55] = {0X55, EOR, 2, 4, ZEROPAGE_X},
     [0X4D] = {0X4D, EOR, 3, 4, ABSOLUTE},
-    [0X5D] = {0X5D, EOR, 3, 4/*+1 if page crossed*/, ABSOLUTE_X},
-    [0X59] = {0X59, EOR, 3, 4/*+1 if page crossed*/, ABSOLUTE_Y},
+    [0X5D] = {0X5D, EOR, 3, 4 /*+1 if page crossed*/, ABSOLUTE_X},
+    [0X59] = {0X59, EOR, 3, 4 /*+1 if page crossed*/, ABSOLUTE_Y},
     [0X41] = {0X41, EOR, 2, 6, INDIRECT_X},
-    [0X51] = {0X51, EOR, 2, 5/*+1 if page crossed*/, INDIRECT_Y},
+    [0X51] = {0X51, EOR, 2, 5 /*+1 if page crossed*/, INDIRECT_Y},
 
     // ORA
     [0X09] = {0X09, ORA, 2, 2, IMMEDIATE},
     [0X05] = {0X05, ORA, 2, 3, ZEROPAGE},
     [0X15] = {0X15, ORA, 2, 4, ZEROPAGE_X},
     [0X0D] = {0X0D, ORA, 3, 4, ABSOLUTE},
-    [0X1D] = {0X1D, ORA, 3, 4/*+1 if page crossed*/, ABSOLUTE_X},
-    [0X19] = {0X19, ORA, 3, 4/*+1 if page crossed*/, ABSOLUTE_Y},
+    [0X1D] = {0X1D, ORA, 3, 4 /*+1 if page crossed*/, ABSOLUTE_X},
+    [0X19] = {0X19, ORA, 3, 4 /*+1 if page crossed*/, ABSOLUTE_Y},
     [0X01] = {0X01, ORA, 2, 6, INDIRECT_X},
-    [0X11] = {0X11, ORA, 2, 5/*+1 if page crossed*/, INDIRECT_Y},
+    [0X11] = {0X11, ORA, 2, 5 /*+1 if page crossed*/, INDIRECT_Y},
 
     // ASL
     [0X0A] = {0X0A, ASL_accumulator, 1, 2, IMPLIED},
@@ -207,10 +208,10 @@ const static OpCode opcodes[0xff] = {
     [0XC5] = {0XC5, CMP, 2, 3, ZEROPAGE},
     [0XD5] = {0XD5, CMP, 2, 4, ZEROPAGE_X},
     [0XCD] = {0XCD, CMP, 3, 4, ABSOLUTE},
-    [0XDD] = {0XDD, CMP, 3, 4/*+1 if page crossed*/, ABSOLUTE_X},
-    [0XD9] = {0XD9, CMP, 3, 4/*+1 if page crossed*/, ABSOLUTE_Y},
+    [0XDD] = {0XDD, CMP, 3, 4 /*+1 if page crossed*/, ABSOLUTE_X},
+    [0XD9] = {0XD9, CMP, 3, 4 /*+1 if page crossed*/, ABSOLUTE_Y},
     [0XC1] = {0XC1, CMP, 2, 6, INDIRECT_X},
-    [0XD1] = {0XD1, CMP, 2, 5/*+1 if page crossed*/, INDIRECT_Y},
+    [0XD1] = {0XD1, CMP, 2, 5 /*+1 if page crossed*/, INDIRECT_Y},
 
     // CPY
     [0XC0] = {0XC0, CPY, 2, 2, IMMEDIATE},
@@ -223,8 +224,8 @@ const static OpCode opcodes[0xff] = {
     [0XEC] = {0XEC, CPX, 3, 4, ABSOLUTE},
 
     // JMP
-    [0X4C] = {0X4C, JMP, 3, 3, IMPLIED /* AddressingMode that acts as Immidiate */},
-    [0X6C] = {0X6C, JMP, 3, 5, IMPLIED /* AddressingMode:Indirect with 6502 bug */},
+    [0X4C] = {0X4C, JMP, 3, 3, ABSOLUTE},
+    [0X6C] = {0X6C, JMP, 3, 5, INDIRECT},
 
     // JSR
     [0X20] = {0X20, JSR, 3, 6, IMPLIED},
@@ -236,28 +237,36 @@ const static OpCode opcodes[0xff] = {
     [0X40] = {0X40, RTI, 1, 6, IMPLIED},
 
     // BNE
-    [0XD0] = {0XD0, BNE, 2, 2 /*(+1 if branch succeeds +2 if to a new page)*/, IMPLIED},
+    [0XD0] = {0XD0, BNE, 2, 2 /*(+1 if branch succeeds +2 if to a new page)*/,
+              IMPLIED},
 
     // BVS
-    [0X70] = {0X70, BVS, 2, 2 /*(+1 if branch succeeds +2 if to a new page)*/, IMPLIED},
+    [0X70] = {0X70, BVS, 2, 2 /*(+1 if branch succeeds +2 if to a new page)*/,
+              IMPLIED},
 
     // BVC
-    [0X50] = {0X50, BVC, 2, 2 /*(+1 if branch succeeds +2 if to a new page)*/, IMPLIED},
+    [0X50] = {0X50, BVC, 2, 2 /*(+1 if branch succeeds +2 if to a new page)*/,
+              IMPLIED},
 
     // BMI
-    [0X30] = {0X30, BMI, 2, 2 /*(+1 if branch succeeds +2 if to a new page)*/, IMPLIED},
+    [0X30] = {0X30, BMI, 2, 2 /*(+1 if branch succeeds +2 if to a new page)*/,
+              IMPLIED},
 
     // BEQ
-    [0XF0] = {0XF0, BEQ, 2, 2 /*(+1 if branch succeeds +2 if to a new page)*/, IMPLIED},
+    [0XF0] = {0XF0, BEQ, 2, 2 /*(+1 if branch succeeds +2 if to a new page)*/,
+              IMPLIED},
 
     // BCS
-    [0XB0] = {0XB0, BCS, 2, 2 /*(+1 if branch succeeds +2 if to a new page)*/, IMPLIED},
+    [0XB0] = {0XB0, BCS, 2, 2 /*(+1 if branch succeeds +2 if to a new page)*/,
+              IMPLIED},
 
     // BCC
-    [0X90] = {0X90, BCC, 2, 2 /*(+1 if branch succeeds +2 if to a new page)*/, IMPLIED},
+    [0X90] = {0X90, BCC, 2, 2 /*(+1 if branch succeeds +2 if to a new page)*/,
+              IMPLIED},
 
     // BPL
-    [0X10] = {0X10, BPL, 2, 2 /*(+1 if branch succeeds +2 if to a new page)*/, IMPLIED},
+    [0X10] = {0X10, BPL, 2, 2 /*(+1 if branch succeeds +2 if to a new page)*/,
+              IMPLIED},
 
     // BIT
     [0X24] = {0X24, BIT, 2, 3, ZEROPAGE},
@@ -268,24 +277,24 @@ const static OpCode opcodes[0xff] = {
     [0XA5] = {0XA5, LDA, 2, 3, ZEROPAGE},
     [0XB5] = {0XB5, LDA, 2, 4, ZEROPAGE_X},
     [0XAD] = {0XAD, LDA, 3, 4, ABSOLUTE},
-    [0XBD] = {0XBD, LDA, 3, 4/*+1 if page crossed*/, ABSOLUTE_X},
-    [0XB9] = {0XB9, LDA, 3, 4/*+1 if page crossed*/, ABSOLUTE_Y},
+    [0XBD] = {0XBD, LDA, 3, 4 /*+1 if page crossed*/, ABSOLUTE_X},
+    [0XB9] = {0XB9, LDA, 3, 4 /*+1 if page crossed*/, ABSOLUTE_Y},
     [0XA1] = {0XA1, LDA, 2, 6, INDIRECT_X},
-    [0XB1] = {0XB1, LDA, 2, 5/*+1 if page crossed*/, INDIRECT_Y},
+    [0XB1] = {0XB1, LDA, 2, 5 /*+1 if page crossed*/, INDIRECT_Y},
 
     // LDX
     [0XA2] = {0XA2, LDX, 2, 2, IMMEDIATE},
     [0XA6] = {0XA6, LDX, 2, 3, ZEROPAGE},
     [0XB6] = {0XB6, LDX, 2, 4, ZEROPAGE_Y},
     [0XAE] = {0XAE, LDX, 3, 4, ABSOLUTE},
-    [0XBE] = {0XBE, LDX, 3, 4/*+1 if page crossed*/, ABSOLUTE_Y},
+    [0XBE] = {0XBE, LDX, 3, 4 /*+1 if page crossed*/, ABSOLUTE_Y},
 
     // LDY
     [0XA0] = {0XA0, LDY, 2, 2, IMMEDIATE},
     [0XA4] = {0XA4, LDY, 2, 3, ZEROPAGE},
     [0XB4] = {0XB4, LDY, 2, 4, ZEROPAGE_X},
     [0XAC] = {0XAC, LDY, 3, 4, ABSOLUTE},
-    [0XBC] = {0XBC, LDY, 3, 4/*+1 if page crossed*/, ABSOLUTE_X},
+    [0XBC] = {0XBC, LDY, 3, 4 /*+1 if page crossed*/, ABSOLUTE_X},
 
     // STA
     [0X85] = {0X85, STA, 2, 3, ZEROPAGE},
