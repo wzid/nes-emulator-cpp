@@ -150,7 +150,7 @@ void CPU::op_BIT(AddressingMode &mode) {
     auto addr = get_operand_address(mode);
     auto value = mem_read(addr);
 
-    if (register_a & value == 0) {
+    if ((register_a & value) == 0) {
         set_status_flag(ZERO_FLAG);
     } else {
         clear_status_flag(ZERO_FLAG);

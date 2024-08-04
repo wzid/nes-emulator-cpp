@@ -59,3 +59,34 @@ TEST(CPUTest, TestLDAFromMemory) {
 
   ASSERT_EQ(cpu.get_register_a(), 0x55);
 }
+
+// TODO: Once SEC opcode is finished, actually test with carry
+TEST(CPUTest, TEST_ADC) {
+  CPU cpu;
+  
+  std::vector<uint8_t> program = {0XA9, 0x05, 0x69, 0x05, 0x00};
+  cpu.load_and_run(program);
+
+  // we added 0x05 + 0x05 which is 0x0A
+  ASSERT_EQ(cpu.get_register_a(), 0x0A);
+}
+
+TEST(CPUTest, TEST_AND) {
+  CPU cpu;
+  
+  std::vector<uint8_t> program = {0XA9, 0x05, 0x29, 0x06, 0x00};
+  cpu.load_and_run(program);
+
+  // we did 0x05 & 0x06 which is 0x04
+  ASSERT_EQ(cpu.get_register_a(), 0x04);
+}
+
+TEST(CPUTest, TEST_ASL) {
+  CPU cpu;
+  
+  std::vector<uint8_t> program = {0XA9, 0x05, 0x0A, 0x00};
+  cpu.load_and_run(program);
+
+  // we did 0x05 & 0x06 which is 0x04
+  ASSERT_EQ(cpu.get_register_a(), 0x05 >> 1);
+}
