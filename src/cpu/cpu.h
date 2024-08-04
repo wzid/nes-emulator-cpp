@@ -2,23 +2,7 @@
 #include <cstdint>
 #include <vector>
 
-enum AddressingMode {
-    IMMEDIATE,
-    ZEROPAGE,
-    ZEROPAGE_X,
-    ZEROPAGE_Y,
-    ABSOLUTE,
-    ABSOLUTE_X,
-    ABSOLUTE_Y,
-    INDIRECT_X,
-    INDIRECT_Y,
-    NONE_ADDRESSING,
-};
-
-const static char *addressing_mode_name[10] = {
-    "Immediate",  "Zero Page",      "Zero Page X", "Zero Page Y",
-    "Absolute",   "Absolute X",     "Absolute Y",  "Indirect X",
-    "Indirect Y", "None Addressing"};
+#include "opcode.h"
 
 const static uint8_t CARRY_FLAG = 1 << 0;              // 00000001
 const static uint8_t ZERO_FLAG = 1 << 1;               // 00000010
@@ -75,26 +59,52 @@ class CPU {
 
     [[gnu::always_inline]]
     inline void op_ADC(AddressingMode &mode);
+
     [[gnu::always_inline]]
     inline void op_AND(AddressingMode &mode);
+
     [[gnu::always_inline]]
     inline void op_ASL_register_a();
+
     [[gnu::always_inline]]
     inline void op_ASL(AddressingMode &mode);
+
     [[gnu::always_inline]]
     inline void branch();
+
     [[gnu::always_inline]]
     inline void op_BIT(AddressingMode &mode);
+
     [[gnu::always_inline]]
-    inline void op_CLC();
+    inline void compare(AddressingMode &mode, uint8_t register_to_compare);
+
+    [[gnu::always_inline]]
+    inline void op_DEC(AddressingMode &mode);
+
+    [[gnu::always_inline]]
+    inline void op_DEX();
+
+    [[gnu::always_inline]]
+    inline void op_DEY();
+
+    [[gnu::always_inline]]
+    inline void op_EOR(AddressingMode &mode);
+
+    [[gnu::always_inline]]
+    inline void op_INC(AddressingMode &mode);
+
     [[gnu::always_inline]]
     inline void op_INX();
+
     [[gnu::always_inline]]
     inline void op_LDA(AddressingMode &mode);
+
     [[gnu::always_inline]]
     inline void op_LDX(AddressingMode &mode);
+
     [[gnu::always_inline]]
     inline void op_STA(AddressingMode &mode);
+
     [[gnu::always_inline]]
     inline void op_TAX();
 

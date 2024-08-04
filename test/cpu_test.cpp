@@ -87,6 +87,15 @@ TEST(CPUTest, TEST_ASL) {
   std::vector<uint8_t> program = {0XA9, 0x05, 0x0A, 0x00};
   cpu.load_and_run(program);
 
-  // we did 0x05 & 0x06 which is 0x04
   ASSERT_EQ(cpu.get_register_a(), 0x05 >> 1);
+}
+
+TEST(CPUTest, TEST_CMP) {
+  CPU cpu;
+  
+  std::vector<uint8_t> program = {0XA9, 0x05, 0xC9, 0x05, 0x00};
+  cpu.load_and_run(program);
+
+  // we did 0x05 & 0x06 which is 0x04
+  ASSERT_TRUE((cpu.get_status() & ZERO_FLAG) != 0);
 }

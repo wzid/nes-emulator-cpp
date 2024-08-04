@@ -100,43 +100,6 @@ void CPU::add_to_register_a(uint8_t value) {
     set_register_a(result);
 }
 
-void CPU::op_ADC(AddressingMode &mode) {
-    auto addr = get_operand_address(mode);
-    auto value = mem_read(addr);
-    add_to_register_a(value);
-}
-
-void CPU::op_AND(AddressingMode &mode) {
-    auto addr = get_operand_address(mode);
-    auto value = mem_read(addr);
-    set_register_a(register_a & value);
-}
-
-void CPU::op_ASL_register_a() {
-    if (register_a >> 7 == 1) {
-        set_status_flag(CARRY_FLAG);
-    } else {
-        clear_status_flag(CARRY_FLAG);
-    }
-
-    set_register_a(register_a >> 1);
-}
-
-void CPU::op_ASL(AddressingMode &mode) {
-    auto addr = get_operand_address(mode);
-    auto value = mem_read(addr);
-
-    if (value >> 7 == 1) {
-        set_status_flag(CARRY_FLAG);
-    } else {
-        clear_status_flag(CARRY_FLAG);
-    }
-
-    value >>= 1;
-    mem_write(addr, value);
-    update_zero_and_negative_flags(value);
-}
-
 void CPU::branch() {
     uint8_t jump = mem_read(program_counter);
     // since the location is relative to the branch we have to increment by
@@ -146,47 +109,17 @@ void CPU::branch() {
     program_counter = jump_addr;
 }
 
-void CPU::op_BIT(AddressingMode &mode) {
+void CPU::compare(AddressingMode &mode, uint8_t register_to_compare) {
     auto addr = get_operand_address(mode);
     auto value = mem_read(addr);
 
-    if ((register_a & value) == 0) {
-        set_status_flag(ZERO_FLAG);
-    } else {
-        clear_status_flag(ZERO_FLAG);
-    }
+    set_status_flag_bit(CARRY_FLAG, register_to_compare >= value);
 
-    //  Bits 7 and 6 of the value from memory are copied into the N and V flags.
-
-    set_status_flag_bit(NEGATIVE_FLAG, value & (1 << 7));
-    set_status_flag_bit(OVERFLOW_FLAG, value & (1 << 6));
+    // Although we have to set ZERO based on if register_to_compare == value
+    // We can just reduce register_to_compare by value, and if its zero
+    // just set the zero flag, which is what this function does already
+    update_zero_and_negative_flags(register_to_compare - value);
 }
-
-void CPU::op_CLC() { clear_status_flag(CARRY_FLAG); }
-
-void CPU::op_INX() {
-    register_x++;
-    update_zero_and_negative_flags(register_x);
-}
-
-void CPU::op_LDA(AddressingMode &mode) {
-    auto addr = get_operand_address(mode);
-    auto value = mem_read(addr);
-    set_register_a(value);
-}
-
-void CPU::op_LDX(AddressingMode &mode) {
-    auto addr = get_operand_address(mode);
-    auto value = mem_read(addr);
-    set_register_x(value);
-}
-
-void CPU::op_STA(AddressingMode &mode) {
-    auto addr = get_operand_address(mode);
-    mem_write(addr, register_a);
-}
-
-void CPU::op_TAX() { set_register_x(register_a); }
 
 void CPU::update_zero_and_negative_flags(uint8_t register_to_check) {
     // This sets the zero flag based on if the result of the
@@ -278,11 +211,10 @@ uint16_t CPU::get_operand_address(AddressingMode &mode) {
             uint16_t final_addr = (higher << 8) | lower;
             return final_addr + register_y;
         }
-        case NONE_ADDRESSING: {
-            const char *mode_name = addressing_mode_name[1];
-            throw std::invalid_argument(
-                std::format("Mode {} is not supported", mode_name));
-        }
+        // does not need an address if it is implied or accumulator
+        case ACCUMULATOR:
+        case IMPLIED:
+            return 0;
     }
 }
 
@@ -293,150 +225,158 @@ void CPU::run() {
         uint16_t old_program_counter = program_counter;
 
         OpCode opcode = opcodes[hex_code];
+        uint16_t addr = get_operand_address(opcode.mode);
 
-        switch (hex_code) {
-            // ADC
-            case 0x69:
-            case 0x65:
-            case 0x75:
-            case 0x6D:
-            case 0x7D:
-            case 0x79:
-            case 0x61:
-            case 0x71:
-                op_ADC(opcode.mode);
+        switch (opcode.mnemonic) {
+            case ADC: {
+                auto value = mem_read(addr);
+                add_to_register_a(value);
+            } break;
+            case AND: {
+                auto value = mem_read(addr);
+                set_register_a(register_a & value);
+            } break;
+            case ASL_accumulator:
+                set_status_flag_bit(CARRY_FLAG, register_a >> 7);
+                set_register_a(register_a >> 1);
                 break;
+            case ASL: {
+                auto value = mem_read(addr);
 
-            // AND
-            case 0x29:
-            case 0x25:
-            case 0x35:
-            case 0x2D:
-            case 0x3D:
-            case 0x39:
-            case 0x21:
-            case 0x31:
-                op_AND(opcode.mode);
-                break;
+                set_status_flag_bit(CARRY_FLAG, value >> 7);
 
-            // ASL Accumulator
-            case 0x0A:
-                op_ASL_register_a();
-                break;
-            // ASL
-            case 0x06:
-            case 0x16:
-            case 0x0E:
-            case 0x1E:
-                op_ASL(opcode.mode);
-                break;
-
-            // BCC
-            case 0x90:
+                value >>= 1;
+                mem_write(addr, value);
+                update_zero_and_negative_flags(value);
+            } break;
+            case BCC:
                 if (!has_status_flag(CARRY_FLAG)) {
                     branch();
                 }
                 break;
-
-            // BCS
-            case 0xB0:
+            case BCS:
                 if (has_status_flag(CARRY_FLAG)) {
                     branch();
                 }
                 break;
-
-            // BEQ
-            case 0xF0:
+            case BEQ:
                 if (has_status_flag(ZERO_FLAG)) {
                     branch();
                 }
                 break;
+            case BIT: {
+                auto value = mem_read(addr);
 
-            // BIT
-            case 0x24:
-            case 0x2C:
-                op_BIT(opcode.mode);
-                break;
+                if ((register_a & value) == 0) {
+                    set_status_flag(ZERO_FLAG);
+                } else {
+                    clear_status_flag(ZERO_FLAG);
+                }
 
-            // BMI
-            case 0x30:
+                //  Bits 7 and 6 of the value from memory are copied into the N
+                //  and V flags.
+
+                set_status_flag_bit(NEGATIVE_FLAG, value & (1 << 7));
+                set_status_flag_bit(OVERFLOW_FLAG, value & (1 << 6));
+            } break;
+            case BMI:
                 if (has_status_flag(NEGATIVE_FLAG)) {
                     branch();
                 }
                 break;
-
-            // BNE
-            case 0xD0:
+            case BNE:
                 if (!has_status_flag(ZERO_FLAG)) {
                     branch();
                 }
                 break;
-
-            // BPL
-            case 0x10:
+            case BPL:
                 if (!has_status_flag(NEGATIVE_FLAG)) {
                     branch();
                 }
                 break;
-
-            // BVC
-            case 0x50:
+            case BVC:
                 if (!has_status_flag(OVERFLOW_FLAG)) {
                     branch();
                 }
                 break;
 
-            // BVS
-            case 0x70:
+            case BVS:
                 if (has_status_flag(OVERFLOW_FLAG)) {
                     branch();
                 }
                 break;
-
-            // CLC
-            case 0x18:
-                op_CLC();
+            case CLC:
+                clear_status_flag(CARRY_FLAG);
                 break;
 
-            case 0xE8:
-                op_INX();
+            case CLD:
+                clear_status_flag(DECIMAL_MODE_FLAG);
                 break;
 
-            case 0xA9:
-            case 0xA5:
-            case 0xB5:
-            case 0xAD:
-            case 0xBD:
-            case 0xB9:
-            case 0xA1:
-            case 0xB1:
-                op_LDA(opcode.mode);
+            case CLI:
+                clear_status_flag(INTERRUPT_DISABLE_FLAG);
                 break;
-
-            case 0xA2:
-            case 0xA6:
-            case 0xB6:
-            case 0xAE:
-            case 0xBE:
-                op_LDX(opcode.mode);
+            case CLV:
+                clear_status_flag(OVERFLOW_FLAG);
                 break;
-
-            case 0x85:
-            case 0x95:
-            case 0x8D:
-            case 0x9D:
-            case 0x99:
-            case 0x81:
-            case 0x91:
-                op_STA(opcode.mode);
+            case CMP:
+                compare(opcode.mode, register_a);
                 break;
-
-            case 0xAA:
-                op_TAX();
+            case CPX:
+                compare(opcode.mode, register_x);
                 break;
+            case CPY:
+                compare(opcode.mode, register_y);
+                break;
+            case DEC: {
+                auto value = mem_read(addr);
 
-            // BRK
-            case 0x00:
+                value--;
+                mem_write(addr, value);
+
+                update_zero_and_negative_flags(value);
+            } break;
+            case DEX:
+                register_x--;
+                update_zero_and_negative_flags(register_x);
+                break;
+            case DEY:
+                register_y--;
+                update_zero_and_negative_flags(register_y);
+                break;
+            case EOR: {
+                auto value = mem_read(addr);
+
+                register_a ^= value;
+
+                update_zero_and_negative_flags(register_a);
+            } break;
+            case INC: {
+                auto value = mem_read(addr);
+                value++;
+
+                mem_write(addr, value);
+                update_zero_and_negative_flags(value);
+            } break;
+            case INX:
+                register_x++;
+                update_zero_and_negative_flags(register_x);
+                break;
+            case LDA: {
+                auto value = mem_read(addr);
+                set_register_a(value);
+            } break;
+            case LDX: {
+                auto value = mem_read(addr);
+                set_register_x(value);
+            } break;
+            case STA:
+                mem_write(addr, register_a);
+                break;
+            case TAX:
+                set_register_x(register_a);
+                break;
+            case BRK:
                 set_status_flag(BREAK_FLAG);
                 return;
                 break;
