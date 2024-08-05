@@ -152,28 +152,28 @@ const static OpCode opcodes[0xff] = {
     [0X11] = {0X11, ORA, 2, 5 /*+1 if page crossed*/, INDIRECT_Y},
 
     // ASL
-    [0X0A] = {0X0A, ASL_accumulator, 1, 2, IMPLIED},
+    [0X0A] = {0X0A, ASL_accumulator, 1, 2, ACCUMULATOR},
     [0X06] = {0X06, ASL, 2, 5, ZEROPAGE},
     [0X16] = {0X16, ASL, 2, 6, ZEROPAGE_X},
     [0X0E] = {0X0E, ASL, 3, 6, ABSOLUTE},
     [0X1E] = {0X1E, ASL, 3, 7, ABSOLUTE_X},
 
     // LSR
-    [0X4A] = {0X4A, LSR_accumulator, 1, 2, IMPLIED},
+    [0X4A] = {0X4A, LSR_accumulator, 1, 2, ACCUMULATOR},
     [0X46] = {0X46, LSR, 2, 5, ZEROPAGE},
     [0X56] = {0X56, LSR, 2, 6, ZEROPAGE_X},
     [0X4E] = {0X4E, LSR, 3, 6, ABSOLUTE},
     [0X5E] = {0X5E, LSR, 3, 7, ABSOLUTE_X},
 
     // ROL
-    [0X2A] = {0X2A, ROL_accumulator, 1, 2, IMPLIED},
+    [0X2A] = {0X2A, ROL_accumulator, 1, 2, ACCUMULATOR},
     [0X26] = {0X26, ROL, 2, 5, ZEROPAGE},
     [0X36] = {0X36, ROL, 2, 6, ZEROPAGE_X},
     [0X2E] = {0X2E, ROL, 3, 6, ABSOLUTE},
     [0X3E] = {0X3E, ROL, 3, 7, ABSOLUTE_X},
 
     // ROR
-    [0X6A] = {0X6A, ROR_accumulator, 1, 2, IMPLIED},
+    [0X6A] = {0X6A, ROR_accumulator, 1, 2, ACCUMULATOR},
     [0X66] = {0X66, ROR, 2, 5, ZEROPAGE},
     [0X76] = {0X76, ROR, 2, 6, ZEROPAGE_X},
     [0X6E] = {0X6E, ROR, 3, 6, ABSOLUTE},
@@ -228,7 +228,7 @@ const static OpCode opcodes[0xff] = {
     [0X6C] = {0X6C, JMP, 3, 5, INDIRECT},
 
     // JSR
-    [0X20] = {0X20, JSR, 3, 6, IMPLIED},
+    [0X20] = {0X20, JSR, 3, 6, ABSOLUTE},
 
     // RTS
     [0X60] = {0X60, RTS, 1, 6, IMPLIED},

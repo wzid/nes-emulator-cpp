@@ -33,6 +33,8 @@ called "Reset interrupt" that instructs CPU to:
 void CPU::reset() {
     register_a = 0;
     register_x = 0;
+    register_y = 0;
+    stack_pointer = STACK_RESET;
 
     // why is 3rd bit to right set?
     status = 0b00100100;
@@ -46,7 +48,7 @@ void CPU::load_and_run(std::vector<uint8_t> &program) {
     run();
 }
 
-bool CPU::has_status_flag(uint8_t status_flag) {
+bool CPU::is_status_flag_set(uint8_t status_flag) {
     return (status & status_flag) != 0;
 }
 
@@ -66,7 +68,7 @@ void CPU::add_to_register_a(uint8_t value) {
     // we convert to u16 so that we can tell if there is a carry or and overflow
     uint16_t sum = ((uint16_t)register_a) + value;
 
-    if (has_status_flag(CARRY_FLAG)) {
+    if (is_status_flag_set(CARRY_FLAG)) {
         sum += 1;
     }
 
@@ -171,6 +173,34 @@ void CPU::mem_write_u16(uint16_t pos, uint16_t data) {
     mem_write(pos + 1, higher);
 }
 
+#include <iostream>
+void CPU::stack_push(uint8_t data) {
+    uint16_t addr = STACK + stack_pointer;
+    mem_write(STACK + stack_pointer, data);
+    stack_pointer--;
+}
+
+// have to manually do it instead of mem_write_u16 because the stack works
+// backwards and we want lower to be the first one to be "popped"
+void CPU::stack_push_u16(uint16_t data) {
+    uint8_t higher = data >> 8;
+    uint8_t lower = (data & 0xff);
+    stack_push(higher);
+    stack_push(lower);
+}
+
+uint8_t CPU::stack_pop() {
+    stack_pointer++;
+    return mem_read(STACK + stack_pointer);
+}
+
+uint16_t CPU::stack_pop_u16() {
+    uint16_t lower = stack_pop();
+    uint16_t higher = stack_pop();
+
+    return (higher << 8) | lower;
+}
+
 uint16_t CPU::get_operand_address(AddressingMode &mode) {
     switch (mode) {
         case IMMEDIATE:
@@ -255,29 +285,29 @@ void CPU::run() {
             } break;
             case ASL_accumulator:
                 set_status_flag_bit(CARRY_FLAG, register_a >> 7);
-                set_register_a(register_a >> 1);
+                set_register_a(register_a << 1);
                 break;
             case ASL: {
                 auto value = mem_read(addr);
 
                 set_status_flag_bit(CARRY_FLAG, value >> 7);
 
-                value >>= 1;
+                value <<= 1;
                 mem_write(addr, value);
                 update_zero_and_negative_flags(value);
             } break;
             case BCC:
-                if (!has_status_flag(CARRY_FLAG)) {
+                if (!is_status_flag_set(CARRY_FLAG)) {
                     branch();
                 }
                 break;
             case BCS:
-                if (has_status_flag(CARRY_FLAG)) {
+                if (is_status_flag_set(CARRY_FLAG)) {
                     branch();
                 }
                 break;
             case BEQ:
-                if (has_status_flag(ZERO_FLAG)) {
+                if (is_status_flag_set(ZERO_FLAG)) {
                     branch();
                 }
                 break;
@@ -297,35 +327,34 @@ void CPU::run() {
                 set_status_flag_bit(OVERFLOW_FLAG, value & (1 << 6));
             } break;
             case BMI:
-                if (has_status_flag(NEGATIVE_FLAG)) {
+                if (is_status_flag_set(NEGATIVE_FLAG)) {
                     branch();
                 }
                 break;
             case BNE:
-                if (!has_status_flag(ZERO_FLAG)) {
+                if (!is_status_flag_set(ZERO_FLAG)) {
                     branch();
                 }
                 break;
             case BPL:
-                if (!has_status_flag(NEGATIVE_FLAG)) {
+                if (!is_status_flag_set(NEGATIVE_FLAG)) {
                     branch();
                 }
                 break;
             case BVC:
-                if (!has_status_flag(OVERFLOW_FLAG)) {
+                if (!is_status_flag_set(OVERFLOW_FLAG)) {
                     branch();
                 }
                 break;
 
             case BVS:
-                if (has_status_flag(OVERFLOW_FLAG)) {
+                if (is_status_flag_set(OVERFLOW_FLAG)) {
                     branch();
                 }
                 break;
             case CLC:
                 clear_status_flag(CARRY_FLAG);
                 break;
-
             case CLD:
                 clear_status_flag(DECIMAL_MODE_FLAG);
                 break;
@@ -347,10 +376,8 @@ void CPU::run() {
                 break;
             case DEC: {
                 auto value = mem_read(addr);
-
                 value--;
                 mem_write(addr, value);
-
                 update_zero_and_negative_flags(value);
             } break;
             case DEX:
@@ -363,15 +390,12 @@ void CPU::run() {
                 break;
             case EOR: {
                 auto value = mem_read(addr);
-
                 register_a ^= value;
-
                 update_zero_and_negative_flags(register_a);
             } break;
             case INC: {
                 auto value = mem_read(addr);
                 value++;
-
                 mem_write(addr, value);
                 update_zero_and_negative_flags(value);
             } break;
@@ -382,6 +406,13 @@ void CPU::run() {
             case JMP:
                 program_counter = addr;
                 break;
+            case JSR:
+                // The JSR instruction pushes the address (minus one) of the
+                // return point on to the stack and then sets the program
+                // counter to the target memory address.
+                stack_push_u16(program_counter + 2 - 1);
+                program_counter = addr;
+                break;
             case LDA: {
                 auto value = mem_read(addr);
                 set_register_a(value);
@@ -390,11 +421,146 @@ void CPU::run() {
                 auto value = mem_read(addr);
                 set_register_x(value);
             } break;
+            case LDY: {
+                auto value = mem_read(addr);
+                set_register_y(addr);
+            } break;
+            case LSR_accumulator:
+                set_status_flag_bit(CARRY_FLAG, register_a & 1);
+                set_register_a(register_a >> 1);
+                break;
+            case LSR: {
+                auto value = mem_read(addr);
+                set_status_flag_bit(CARRY_FLAG, value & 1);
+                value >>= 1;
+                mem_write(addr, value);
+                update_zero_and_negative_flags(value);
+            } break;
+            case NOP:
+                // do nothing :)
+                break;
+            case ORA: {
+                auto value = mem_read(addr);
+                set_register_a(register_a | value);
+            } break;
+            case PHA:
+                stack_push(register_a);
+                break;
+            case PHP: {
+                uint8_t status_clone = status;
+                status_clone |= BREAK_FLAG;
+                status_clone |= ALWAYS_ONE_FLAG;
+                stack_push(status_clone);
+            } break;
+            case PLA: {
+                uint8_t accumulator = stack_pop();
+                set_register_a(accumulator);
+            } break;
+            case PLP: {
+                uint8_t processor_status = stack_pop();
+                status = processor_status;
+                clear_status_flag(BREAK_FLAG);
+                set_status_flag(ALWAYS_ONE_FLAG);
+            } break;
+            case ROL_accumulator: {
+                uint8_t new_register_a = register_a;
+                uint8_t carry_was_set = is_status_flag_set(CARRY_FLAG);
+
+                set_status_flag_bit(CARRY_FLAG, new_register_a >> 7);
+
+                new_register_a <<= 1;
+                if (carry_was_set) {
+                    new_register_a |= 1;
+                }
+                set_register_a(new_register_a);
+            } break;
+            case ROL: {
+                auto data = mem_read(addr);
+                uint8_t carry_was_set = is_status_flag_set(CARRY_FLAG);
+                set_status_flag_bit(CARRY_FLAG, data >> 7);
+
+                data <<= 1;
+                if (carry_was_set) {
+                    data |= 1;
+                }
+                mem_write(addr, data);
+                update_zero_and_negative_flags(data);
+            } break;
+            case ROR_accumulator: {
+                uint8_t new_register_a = register_a;
+                uint8_t carry_was_set = is_status_flag_set(CARRY_FLAG);
+
+                set_status_flag_bit(CARRY_FLAG, new_register_a & 1);
+
+                new_register_a >>= 1;
+                if (carry_was_set) {
+                    // 0x80 (set 7th bit to carry)
+                    new_register_a |= 0b10000000;
+                }
+                set_register_a(new_register_a);
+            } break;
+            case ROR: {
+                auto data = mem_read(addr);
+                uint8_t carry_was_set = is_status_flag_set(CARRY_FLAG);
+                set_status_flag_bit(CARRY_FLAG, data & 1);
+
+                data >>= 1;
+                if (carry_was_set) {
+                    // 0x80 (set 7th bit to carry)
+                    data |= 0b10000000;
+                }
+                mem_write(addr, data);
+                update_zero_and_negative_flags(data);
+            } break;
+            case RTI:
+                status = stack_pop();
+                clear_status_flag(BREAK_FLAG);
+                set_status_flag(ALWAYS_ONE_FLAG);
+
+                program_counter = stack_pop_u16();
+                break;
+            case RTS:
+                program_counter = stack_pop_u16() + 1;
+                break;
+            case SBC: {
+                auto value = mem_read(addr);
+                add_to_register_a(-value - 1);
+            } break;
+            case SEC:
+                set_status_flag(CARRY_FLAG);
+                break;
+            case SED:
+                set_status_flag(DECIMAL_MODE_FLAG);
+                break;
+            case SEI:
+                set_status_flag(INTERRUPT_DISABLE_FLAG);
+                break;
             case STA:
                 mem_write(addr, register_a);
                 break;
+            case STX:
+                mem_write(addr, register_x);
+                break;
+            case STY:
+                mem_write(addr, register_y);
+                break;
             case TAX:
                 set_register_x(register_a);
+                break;
+            case TAY:
+                set_register_y(register_a);
+                break;
+            case TSX:
+                set_register_x(stack_pointer);
+                break;
+            case TXA:
+                set_register_a(register_x);
+                break;
+            case TXS:
+                stack_pointer = register_x;
+                break;
+            case TYA:
+                set_register_a(register_y);
                 break;
             case BRK:
                 set_status_flag(BREAK_FLAG);

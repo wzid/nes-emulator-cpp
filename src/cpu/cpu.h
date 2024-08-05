@@ -9,9 +9,12 @@ const static uint8_t ZERO_FLAG = 1 << 1;               // 00000010
 const static uint8_t INTERRUPT_DISABLE_FLAG = 1 << 2;  // 00000100
 const static uint8_t DECIMAL_MODE_FLAG = 1 << 3;       // 00001000
 const static uint8_t BREAK_FLAG = 1 << 4;              // 00010000
-const static uint8_t BREAK2_FLAG = 1 << 5;             // 00100000
+const static uint8_t ALWAYS_ONE_FLAG = 1 << 5;         // 00100000
 const static uint8_t OVERFLOW_FLAG = 1 << 6;           // 01000000
 const static uint8_t NEGATIVE_FLAG = 1 << 7;           // 10000000
+
+const static uint16_t STACK = 0x0100;
+const static uint8_t STACK_RESET = 0xFD;
 
 class CPU {
    public:
@@ -22,7 +25,7 @@ class CPU {
     void load(std::vector<uint8_t> &program);
     void run();
 
-    bool has_status_flag(uint8_t status_flag);
+    bool is_status_flag_set(uint8_t status_flag);
     void set_status_flag(uint8_t status_flag);
     void clear_status_flag(uint8_t status_flag);
     void set_status_flag_bit(uint8_t status_flag, bool check);
@@ -32,6 +35,12 @@ class CPU {
 
     uint16_t mem_read_u16(uint16_t pos);
     void mem_write_u16(uint16_t pos, uint16_t data);
+
+    void stack_push(uint8_t data);
+    void stack_push_u16(uint16_t data);
+
+    uint8_t stack_pop();
+    uint16_t stack_pop_u16();
 
     uint8_t get_register_a() { return register_a; }
     uint8_t get_register_x() { return register_x; }
@@ -70,6 +79,9 @@ class CPU {
     uint8_t register_y;
     uint8_t status;
     uint16_t program_counter;
+    // https://www.nesdev.org/obelisk-6502-guide/registers.html
+    // look for Stack Pointer
+    uint8_t stack_pointer;
     // 64 KiB
     uint8_t memory[0xffff];
 };
