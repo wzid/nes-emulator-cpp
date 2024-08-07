@@ -16,12 +16,13 @@ CPU::CPU() {
 
 // Program ROM starts at 0x8000 to 0xffff
 void CPU::load(std::vector<uint8_t> &program) {
-    uint16_t index = 0x8000;
+    uint16_t starting_index = 0x0600;
+    uint16_t index = starting_index;
     for (uint8_t opcode : program) {
         memory[index] = opcode;
         index++;
     }
-    mem_write_u16(0xfffc, 0x8000);
+    mem_write_u16(0xfffc, starting_index);
 }
 /* NES platform has a special mechanism to mark where the CPU should start the
 execution. Upon inserting a new cartridge, the CPU receives a special signal
@@ -111,9 +112,8 @@ void CPU::branch() {
     program_counter = jump_addr;
 }
 
-void CPU::compare(AddressingMode &mode, uint8_t register_to_compare) {
-    auto addr = get_operand_address(mode);
-    auto value = mem_read(addr);
+void CPU::compare(uint16_t operand_address, uint8_t register_to_compare) {
+    auto value = mem_read(operand_address);
 
     set_status_flag_bit(CARRY_FLAG, register_to_compare >= value);
 
@@ -266,7 +266,13 @@ uint16_t CPU::get_operand_address(AddressingMode &mode) {
 }
 
 void CPU::run() {
+    run_with_callback([](CPU &cpu) {});
+}
+
+void CPU::run_with_callback(void (*callback_function)(CPU &)) {
     while (1) {
+        callback_function(*this);
+
         uint8_t hex_code = mem_read(program_counter);
         program_counter++;
         uint16_t old_program_counter = program_counter;
@@ -284,13 +290,13 @@ void CPU::run() {
                 set_register_a(register_a & value);
             } break;
             case ASL_accumulator:
-                set_status_flag_bit(CARRY_FLAG, register_a >> 7);
+                set_status_flag_bit(CARRY_FLAG, (register_a >> 7) == 1);
                 set_register_a(register_a << 1);
                 break;
             case ASL: {
                 auto value = mem_read(addr);
 
-                set_status_flag_bit(CARRY_FLAG, value >> 7);
+                set_status_flag_bit(CARRY_FLAG, (value >> 7) == 1);
 
                 value <<= 1;
                 mem_write(addr, value);
@@ -314,17 +320,12 @@ void CPU::run() {
             case BIT: {
                 auto value = mem_read(addr);
 
-                if ((register_a & value) == 0) {
-                    set_status_flag(ZERO_FLAG);
-                } else {
-                    clear_status_flag(ZERO_FLAG);
-                }
+                set_status_flag_bit(ZERO_FLAG, (register_a & value) == 0);
 
                 //  Bits 7 and 6 of the value from memory are copied into the N
                 //  and V flags.
-
-                set_status_flag_bit(NEGATIVE_FLAG, value & (1 << 7));
-                set_status_flag_bit(OVERFLOW_FLAG, value & (1 << 6));
+                set_status_flag_bit(NEGATIVE_FLAG, (value >> 7) & 1);
+                set_status_flag_bit(OVERFLOW_FLAG, (value >> 6) & 1);
             } break;
             case BMI:
                 if (is_status_flag_set(NEGATIVE_FLAG)) {
@@ -366,13 +367,13 @@ void CPU::run() {
                 clear_status_flag(OVERFLOW_FLAG);
                 break;
             case CMP:
-                compare(opcode.mode, register_a);
+                compare(addr, register_a);
                 break;
             case CPX:
-                compare(opcode.mode, register_x);
+                compare(addr, register_x);
                 break;
             case CPY:
-                compare(opcode.mode, register_y);
+                compare(addr, register_y);
                 break;
             case DEC: {
                 auto value = mem_read(addr);
@@ -389,6 +390,7 @@ void CPU::run() {
                 update_zero_and_negative_flags(register_y);
                 break;
             case EOR: {
+                // NOTE: different than Jakes but logic is same?
                 auto value = mem_read(addr);
                 register_a ^= value;
                 update_zero_and_negative_flags(register_a);
@@ -402,6 +404,10 @@ void CPU::run() {
             case INX:
                 register_x++;
                 update_zero_and_negative_flags(register_x);
+                break;
+            case INY:
+                register_y++;
+                update_zero_and_negative_flags(register_y);
                 break;
             case JMP:
                 program_counter = addr;
@@ -458,59 +464,35 @@ void CPU::run() {
             } break;
             case PLP: {
                 uint8_t processor_status = stack_pop();
+                processor_status &= ~BREAK_FLAG;
+                processor_status |= ALWAYS_ONE_FLAG;
                 status = processor_status;
-                clear_status_flag(BREAK_FLAG);
-                set_status_flag(ALWAYS_ONE_FLAG);
             } break;
             case ROL_accumulator: {
-                uint8_t new_register_a = register_a;
-                uint8_t carry_was_set = is_status_flag_set(CARRY_FLAG);
-
-                set_status_flag_bit(CARRY_FLAG, new_register_a >> 7);
-
-                new_register_a <<= 1;
-                if (carry_was_set) {
-                    new_register_a |= 1;
-                }
-                set_register_a(new_register_a);
+                uint8_t result = (register_a << 1) | is_status_flag_set(CARRY_FLAG);
+                set_status_flag_bit(CARRY_FLAG, (register_a >> 7) == 1);
+                set_register_a(result);
             } break;
             case ROL: {
                 auto data = mem_read(addr);
-                uint8_t carry_was_set = is_status_flag_set(CARRY_FLAG);
-                set_status_flag_bit(CARRY_FLAG, data >> 7);
-
-                data <<= 1;
-                if (carry_was_set) {
-                    data |= 1;
-                }
-                mem_write(addr, data);
-                update_zero_and_negative_flags(data);
+                uint8_t result = (data << 1) | is_status_flag_set(CARRY_FLAG);
+                mem_write(addr, result);
+                set_status_flag_bit(CARRY_FLAG, (data >> 7) == 1);
+                update_zero_and_negative_flags(result);
             } break;
             case ROR_accumulator: {
-                uint8_t new_register_a = register_a;
-                uint8_t carry_was_set = is_status_flag_set(CARRY_FLAG);
-
-                set_status_flag_bit(CARRY_FLAG, new_register_a & 1);
-
-                new_register_a >>= 1;
-                if (carry_was_set) {
-                    // 0x80 (set 7th bit to carry)
-                    new_register_a |= 0b10000000;
-                }
-                set_register_a(new_register_a);
+                uint8_t carry = is_status_flag_set(CARRY_FLAG);
+                uint8_t result = (register_a >> 1) | (carry << 7);
+                set_status_flag_bit(CARRY_FLAG, (register_a & 1) == 1);
+                set_register_a(result);
             } break;
             case ROR: {
                 auto data = mem_read(addr);
-                uint8_t carry_was_set = is_status_flag_set(CARRY_FLAG);
-                set_status_flag_bit(CARRY_FLAG, data & 1);
-
-                data >>= 1;
-                if (carry_was_set) {
-                    // 0x80 (set 7th bit to carry)
-                    data |= 0b10000000;
-                }
-                mem_write(addr, data);
-                update_zero_and_negative_flags(data);
+                uint8_t carry = is_status_flag_set(CARRY_FLAG);
+                uint8_t result = (data << 1) | (carry << 7);
+                mem_write(addr, result);
+                set_status_flag_bit(CARRY_FLAG, (data & 1) == 1);
+                update_zero_and_negative_flags(result);
             } break;
             case RTI:
                 status = stack_pop();
@@ -524,7 +506,7 @@ void CPU::run() {
                 break;
             case SBC: {
                 auto value = mem_read(addr);
-                add_to_register_a(-value - 1);
+                add_to_register_a((-value) - 1);
             } break;
             case SEC:
                 set_status_flag(CARRY_FLAG);

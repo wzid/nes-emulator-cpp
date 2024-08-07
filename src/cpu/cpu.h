@@ -24,6 +24,7 @@ class CPU {
     void load_and_run(std::vector<uint8_t> &program);
     void load(std::vector<uint8_t> &program);
     void run();
+    void run_with_callback(void (*callback_function)(CPU &));
 
     bool is_status_flag_set(uint8_t status_flag);
     void set_status_flag(uint8_t status_flag);
@@ -70,7 +71,7 @@ class CPU {
     inline void branch();
 
     [[gnu::always_inline]]
-    inline void compare(AddressingMode &mode, uint8_t register_to_compare);
+    inline void compare(uint16_t operand_address, uint8_t register_to_compare);
 
     void update_zero_and_negative_flags(uint8_t register_to_check);
 

@@ -1,5 +1,184 @@
+#include <SDL.h>
+#include <SDL_image.h>
+#include <SDL_ttf.h>
+
+#include <cstdint>
 #include <iostream>
+#include <random>
+#include <vector>
+#include <chrono>
+#include <thread>
+
+#include "cpu/cpu.h"
+
+void cpu_callback(CPU& cpu);
+void handle_user_input(CPU& cpu);
+
+SDL_Color get_color(uint8_t byte);
+bool read_screen_state(CPU& cpu, uint8_t* frame);
+
+std::vector<uint8_t> get_game_code();
+
+std::random_device dev;
+std::mt19937 gen(dev());
+std::uniform_int_distribution<> dis(1, 16);  // distribution in range [1, 16]
+
+uint8_t screen_state[32 * 3 * 32] = {0};
+SDL_Renderer* renderer;
+SDL_Texture* texture;
 
 int main() {
-    std::cout << "Hello, World!" << std::endl;
+    if (SDL_Init(SDL_INIT_VIDEO) < 0) {
+        SDL_Log("SDL could not initialize! SDL_Error: %s\n", SDL_GetError());
+        return 1;
+    }
+
+    SDL_Window* window = SDL_CreateWindow("Snake Game", SDL_WINDOWPOS_CENTERED,
+                                          SDL_WINDOWPOS_CENTERED, 32 * 10,
+                                          32 * 10, SDL_WINDOW_SHOWN);
+
+    if (window == nullptr) {
+        SDL_Log("Window could not be created! SDL_Error: %s\n", SDL_GetError());
+        return 1;
+    }
+
+    renderer = SDL_CreateRenderer(
+        window, -1, SDL_RENDERER_ACCELERATED | SDL_RENDERER_PRESENTVSYNC);
+
+    if (renderer == nullptr) {
+        SDL_Log("Renderer could not be created! SDL_Error: %s\n",
+                SDL_GetError());
+        return 1;
+    }
+
+    SDL_RenderSetScale(renderer, 10, 10);
+
+    texture = SDL_CreateTexture(
+        renderer, SDL_PIXELFORMAT_RGB24, SDL_TEXTUREACCESS_STREAMING, 32, 32);
+    if (texture == nullptr) {
+        SDL_Log("Texture could not be created! SDL_Error: %s\n",
+                SDL_GetError());
+        return 1;
+    }
+
+    std::vector<uint8_t> game_code = get_game_code();
+    CPU cpu;
+    cpu.load(game_code);
+    cpu.reset();
+    cpu.run_with_callback(cpu_callback);
+
+
+    SDL_DestroyTexture(texture);
+    SDL_DestroyRenderer(renderer);
+    SDL_DestroyWindow(window);
+    SDL_Quit();
+}
+
+void cpu_callback(CPU& cpu) {
+    handle_user_input(cpu);
+    // TODO:
+    int lol = dis(gen);
+    cpu.mem_write(0xFE, lol);
+    if (read_screen_state(cpu, screen_state)) {
+
+        SDL_UpdateTexture(texture, nullptr, screen_state, 32 * 3);
+        SDL_RenderCopy(renderer, texture, nullptr, nullptr);
+        SDL_RenderPresent(renderer);
+    }
+
+    std::this_thread::sleep_for(std::chrono::microseconds(70000));
+}
+
+void handle_user_input(CPU& cpu) {
+    SDL_PumpEvents();
+    const Uint8* keyboard = SDL_GetKeyboardState(nullptr);
+
+    if (keyboard[SDL_SCANCODE_ESCAPE]) {
+        exit(0);
+    } else if (keyboard[SDL_SCANCODE_W]) {
+        cpu.mem_write(0xFF, 0x77);
+    } else if (keyboard[SDL_SCANCODE_A]) {
+        cpu.mem_write(0xFF, 0x61);
+    } else if (keyboard[SDL_SCANCODE_S]) {
+        cpu.mem_write(0xFF, 0x73);
+    } else if (keyboard[SDL_SCANCODE_D]) {
+        cpu.mem_write(0xFF, 0x64);
+    }
+}
+
+SDL_Color get_color(uint8_t byte) {
+    switch (byte) {
+        case 0:
+            return SDL_Color{0, 0, 0, 255};
+        case 1:
+            return SDL_Color{255, 255, 255, 255};
+        case 2:
+        case 9:
+            return SDL_Color{128, 128, 128, 255};
+        case 3:
+        case 10:
+            return SDL_Color{255, 0, 0, 255};
+        case 4:
+        case 11:
+            return SDL_Color{0, 255, 0, 255};
+        case 5:
+        case 12:
+            return SDL_Color{0, 0, 255, 255};
+        case 6:
+        case 13:
+            return SDL_Color{255, 0, 255, 255};
+        case 7:
+        case 14:
+            return SDL_Color{255, 255, 0, 255};
+        default:
+            return SDL_Color{0, 255, 255, 255};
+    }
+}
+bool read_screen_state(CPU& cpu, uint8_t* frame) {
+    int frame_i = 0;
+    bool update = false;
+    for (uint16_t i = 0x0200; i < 0x0600; i++) {
+        uint8_t color_i = cpu.mem_read(i);
+        // print out color_i
+        SDL_Color color = get_color(color_i);
+        if (frame[frame_i] != color.r || frame[frame_i + 1] != color.g || frame[frame_i + 2] != color.b) {
+        std::cout << "color_i: " << (int)color_i << std::endl;
+            frame[frame_i] = color.r;
+            frame[frame_i + 1] = color.g;
+            frame[frame_i + 2] = color.b;
+            update = true;
+        }
+        frame_i += 3;
+    }
+    return update;
+}
+
+std::vector<uint8_t> get_game_code() {
+    return {
+        0x20, 0x06, 0x06, 0x20, 0x38, 0x06, 0x20, 0x0d, 0x06, 0x20, 0x2a, 0x06,
+        0x60, 0xa9, 0x02, 0x85, 0x02, 0xa9, 0x04, 0x85, 0x03, 0xa9, 0x11, 0x85,
+        0x10, 0xa9, 0x10, 0x85, 0x12, 0xa9, 0x0f, 0x85, 0x14, 0xa9, 0x04, 0x85,
+        0x11, 0x85, 0x13, 0x85, 0x15, 0x60, 0xa5, 0xfe, 0x85, 0x00, 0xa5, 0xfe,
+        0x29, 0x03, 0x18, 0x69, 0x02, 0x85, 0x01, 0x60, 0x20, 0x4d, 0x06, 0x20,
+        0x8d, 0x06, 0x20, 0xc3, 0x06, 0x20, 0x19, 0x07, 0x20, 0x20, 0x07, 0x20,
+        0x2d, 0x07, 0x4c, 0x38, 0x06, 0xa5, 0xff, 0xc9, 0x77, 0xf0, 0x0d, 0xc9,
+        0x64, 0xf0, 0x14, 0xc9, 0x73, 0xf0, 0x1b, 0xc9, 0x61, 0xf0, 0x22, 0x60,
+        0xa9, 0x04, 0x24, 0x02, 0xd0, 0x26, 0xa9, 0x01, 0x85, 0x02, 0x60, 0xa9,
+        0x08, 0x24, 0x02, 0xd0, 0x1b, 0xa9, 0x02, 0x85, 0x02, 0x60, 0xa9, 0x01,
+        0x24, 0x02, 0xd0, 0x10, 0xa9, 0x04, 0x85, 0x02, 0x60, 0xa9, 0x02, 0x24,
+        0x02, 0xd0, 0x05, 0xa9, 0x08, 0x85, 0x02, 0x60, 0x60, 0x20, 0x94, 0x06,
+        0x20, 0xa8, 0x06, 0x60, 0xa5, 0x00, 0xc5, 0x10, 0xd0, 0x0d, 0xa5, 0x01,
+        0xc5, 0x11, 0xd0, 0x07, 0xe6, 0x03, 0xe6, 0x03, 0x20, 0x2a, 0x06, 0x60,
+        0xa2, 0x02, 0xb5, 0x10, 0xc5, 0x10, 0xd0, 0x06, 0xb5, 0x11, 0xc5, 0x11,
+        0xf0, 0x09, 0xe8, 0xe8, 0xe4, 0x03, 0xf0, 0x06, 0x4c, 0xaa, 0x06, 0x4c,
+        0x35, 0x07, 0x60, 0xa6, 0x03, 0xca, 0x8a, 0xb5, 0x10, 0x95, 0x12, 0xca,
+        0x10, 0xf9, 0xa5, 0x02, 0x4a, 0xb0, 0x09, 0x4a, 0xb0, 0x19, 0x4a, 0xb0,
+        0x1f, 0x4a, 0xb0, 0x2f, 0xa5, 0x10, 0x38, 0xe9, 0x20, 0x85, 0x10, 0x90,
+        0x01, 0x60, 0xc6, 0x11, 0xa9, 0x01, 0xc5, 0x11, 0xf0, 0x28, 0x60, 0xe6,
+        0x10, 0xa9, 0x1f, 0x24, 0x10, 0xf0, 0x1f, 0x60, 0xa5, 0x10, 0x18, 0x69,
+        0x20, 0x85, 0x10, 0xb0, 0x01, 0x60, 0xe6, 0x11, 0xa9, 0x06, 0xc5, 0x11,
+        0xf0, 0x0c, 0x60, 0xc6, 0x10, 0xa5, 0x10, 0x29, 0x1f, 0xc9, 0x1f, 0xf0,
+        0x01, 0x60, 0x4c, 0x35, 0x07, 0xa0, 0x00, 0xa5, 0xfe, 0x91, 0x00, 0x60,
+        0xa6, 0x03, 0xa9, 0x00, 0x81, 0x10, 0xa2, 0x00, 0xa9, 0x01, 0x81, 0x10,
+        0x60, 0xa2, 0x00, 0xea, 0xea, 0xca, 0xd0, 0xfb, 0x60};
 }
