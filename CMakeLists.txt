@@ -53,3 +53,10 @@ target_include_directories(
   ${SDL2_image}/Versions/A/Headers
   ${SDL2_ttf}/Versions/A/Headers
 )
+
+FetchContent_Declare(json URL https://github.com/nlohmann/json/releases/download/v3.11.3/json.tar.xz)
+FetchContent_MakeAvailable(json)
+
+add_executable(json_test src/main-json-test.cpp)
+target_include_directories(json_test PRIVATE src/cpu)
+target_link_libraries(json_test PRIVATE cpu_lib nlohmann_json::nlohmann_json)
