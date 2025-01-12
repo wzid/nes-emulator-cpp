@@ -59,4 +59,4 @@ FetchContent_MakeAvailable(json)
 
 add_executable(json_test src/main-json-test.cpp)
 target_include_directories(json_test PRIVATE src/cpu)
-target_link_libraries(json_test PRIVATE cpu_lib nlohmann_json::nlohmann_json)
+target_link_libraries(json_test PRIVATE cpu_lib nlohmann_json::nlohmann_json GTest::gtest_main)

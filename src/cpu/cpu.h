@@ -47,6 +47,7 @@ class CPU {
     uint8_t get_register_x() { return register_x; }
     uint8_t get_register_y() { return register_y; }
     uint8_t get_status() { return status; }
+    uint16_t get_program_counter() { return program_counter; }
 
     void set_register_a(uint8_t value) {
         register_a = value;
@@ -61,6 +62,18 @@ class CPU {
     void set_register_y(uint8_t value) {
         register_y = value;
         update_zero_and_negative_flags(register_y);
+    }
+
+    void set_program_counter(uint16_t value) {
+        program_counter = value;
+    }
+
+    void set_stack_pointer(uint8_t value) {
+        stack_pointer = value;
+    }
+
+    void set_status(uint8_t value) {
+        status = value;
     }
 
    private:
